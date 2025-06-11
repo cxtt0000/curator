@@ -110,10 +110,6 @@ curator提供多种方式进行模拟，包括使用定义好的配置文件提�
    # Load necessary modules (if any)
    lammps_modules
    
-   # Run nvidia-smi to get GPU information
-   
-   # Additional GPU queries can be added here
-   
    lmp -in in.lammps
 
 选择
@@ -148,6 +144,11 @@ curator集成了多种 `选择算法 <https://arxiv.org/abs/2203.09410>`_，通�
    transforms: []
    trainset: ./select.traj # 储存选择得到的结构的文件，如为已有的traj，则会在末尾追加写入
 
+之后直接提交任务即可：
+
+.. code-block:: bash
+
+   mq submit "shell:curator-select cfg=config.yaml" -X--gres=gpu:1 -R 48:hgpu2:2d
 
 标注
 =========
