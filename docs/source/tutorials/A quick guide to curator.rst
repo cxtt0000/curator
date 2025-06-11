@@ -16,7 +16,7 @@ curator支持单独执行以上四种操作，分别由curator-train, curator-si
 
    ase convert OUTCAR dataset.traj
 
-然后准备好训练所需的配置文件config.yaml，以下为实例及常用参数解释：
+然后准备好训练所需的配置文件config.yaml， `这里 <https://wiki.fysik.dtu.dk/ase/ase/io/trajectory.html>`_  提供了一份样例，以下为常用参数解释：
 
 .. code-block:: bash
 
