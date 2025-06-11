@@ -41,6 +41,8 @@ curator支持单独执行以上四种操作，分别由curator-train, curator-si
 
 即可提交训练任务。curator使用myqueue进行任务提交和管理，其中gpu:2代表使用2块GPU（该值需和配置文件中的devices一致），96:hgpu2:5d表示使用96个cpu核，提交到hgpu2队列中，最大时长为5天。
 
+训练期间会产生training.log文件，其中记载了训练的详细信息。同时会产生model_path文件夹，其中储存了训练期间loss最小的文件，会随着训练动态更新。如果配置文件中指定deploy_model: true，则最终还会产生编译好的模型compiled_model.pt。
+
 模拟
 =========
 curator提供多种方式进行模拟，包括使用定义好的配置文件提交ase、lammps任务，或是使用编译好的模型，通过编写lammps脚本的方式进行模拟。推荐使用最后一种方法，这样具有最高的自由度，能够与一般的lammps任务使用完全一致的参数，仅需修改pair_style和pair_coeff。
@@ -61,7 +63,7 @@ curator提供多种方式进行模拟，包括使用定义好的配置文件提�
   
    # Ensemble model使用以下参数
    pair_style      curator uncertainty force_sd
-   pair_coeff      * * compiled_model.pt 1 8 # 这里1 8修改为当前初始结构中元素顺序对应的原子序号，需要和in.data中一致
+   pair_coeff      * * compiled_model.pt 1 8 # 这里1 8修改为当前初始结构中元素顺序对应的原子序号，需要和in.data中一致。compiled_model.pt替换为实际所用的模型文件名称
    
    neighbor        0.0 bin #不使用skin方法
    neigh_modify    delay 0 every 1 check no
@@ -87,26 +89,72 @@ curator提供多种方式进行模拟，包括使用定义好的配置文件提�
    newton off
 
    pair_style      curator
-   pair_coeff      * * compiled_model.pt 1 8 # 这里1 8修改为当前初始结构中元素顺序对应的原子序号，需要和in.data中一致
+   pair_coeff      * * compiled_model.pt 1 8 # 这里1 8修改为当前初始结构中元素顺序对应的原子序号，需要和in.data中一致。compiled_model.pt替换为实际所用的模型文件名称
 
    neighbor        0.0 bin #不使用skin方法
    neigh_modify    delay 0 every 1 check no
 
-
-
-使用说明
-=========
-本软件的使用非常简单，只需运行以下命令：
+准备好in.lammps, in.data和compiled_model.pt后，使用如下脚本提交任务：
 
 .. code-block:: bash
 
-   example-software --help
+   #!/bin/bash -l
+   #SBATCH --job-name=test
+   #SBATCH -p hgpu2
+   #SBATCH --nodes=1
+   #SBATCH --ntasks=1
+   #SBATCH --gpus-per-node=1
+   #SBATCH --output=%j.out
+   #SBATCH --error=%j.err
+   
+   # Load necessary modules (if any)
+   lammps_modules
+   
+   # Run nvidia-smi to get GPU information
+   
+   # Additional GPU queries can be added here
+   
+   lmp -in in.lammps
 
-贡献
-=====
-如果你有兴趣为本软件贡献代码，请参考我们的 `贡献指南 <https://example.com/contributing>`_。
+选择
+=========
+curator集成了多种 `选择算法 <https://arxiv.org/abs/2203.09410>`_，通常而言选择默认的Largest cluster maximum distance即可。需要准备好配置文件config.yaml，示例如下：
 
-许可证
-=======
-本软件遵循 MIT 许可证。
+.. code-block:: yaml
+
+   _convert_: all
+   cfg: select.yaml
+   seed: 123
+   run_path: .
+   model_path: # 替换为实际模型所在路径
+   - test_train/112/model_path
+   - test_train/120/model_path
+   - test_train/128/model_path
+   - test_train/136/model_path
+   - test_train/144/model_path
+   device: cuda
+   dataset: null
+   split_file: null
+   train_set: null
+   pool_set: # 用于选择的轨迹文件，如有多个则换行依次写
+   - ./warning_struct.traj
+   batch_size: 500 # 选择后得到的样本数量
+   kernel: full-g # 选择算法
+   method: lcmd_greedy # 选择算法
+   n_random_features: 500
+   save_features: false
+   save_images: false
+   debug: false
+   transforms: []
+   trainset: ./select.traj # 储存选择得到的结构的文件，如为已有的traj，则会在末尾追加写入
+
+
+标注
+=========
+
+
+workflow
+=========
+
+
 
